@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Login — Isha Automation</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="login-page">
+
+  <div class="login-container">
+
+    <div class="login-brand">
+      <img src="images/isha-logo.jpeg" alt="logo" style="width:72px;height:72px;border-radius:14px">
+    </div>
+
+    <h1>Isha Automation</h1>
+    <p class="muted">Sign in to continue</p>
+
+    <form id="loginForm" class="login-form" autocomplete="off" novalidate>
+      <label>
+        Username
+        <input id="username" type="text" placeholder="Enter username">
+      </label>
+
+      <label>
+        Password
+        <input id="password" type="password" placeholder="Enter password">
+      </label>
+
+      <button class="btn primary" type="submit">Login</button>
+      <p id="error" class="error" aria-live="polite"></p>
+    </form>
+
+    <div class="login-info">
+      <p><b>Admin:</b> <code>admin</code> / <code>admin123</code></p>
+      <p><b>User:</b> <code>user</code> / <code>user123</code></p>
+    </div>
+
+  </div>
+
+  <!-- Loader -->
+  <div id="globalLoader" class="global-loader">
+    <div class="spinner"></div>
+  </div>
+
+<script src="auth.js"></script>
+
+<script>
+const form = document.getElementById("loginForm");
+const err = document.getElementById("error");
+
+if (isLoggedIn()) {
+  window.location.href = "inventory.html";
+}
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  err.textContent = "";
+
+  const u = username.value.trim();
+  const p = password.value.trim();
+
+  if (!u || !p) {
+    showToast("Enter username and password", "warn");
+    return;
+  }
+
+  showLoader();
+
+  setTimeout(() => {
+    const ok = login(u, p);
+    hideLoader();
+
+    if (!ok) {
+      showToast("Invalid login", "error");
+      password.value = "";
+      return;
+    }
+
+    showToast("Welcome " + u, "success");
+    setTimeout(() => location.href = "inventory.html", 600);
+
+  }, 700);
+});
+</script>
+
+</body>
+</html>

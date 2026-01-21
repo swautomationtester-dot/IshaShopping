@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Admin Panel — Isha Automation</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+.stats{display:flex;gap:16px;margin:16px 0}
+.stat-card{background:white;padding:16px;border-radius:10px;box-shadow:0 4px 10px rgba(0,0,0,.06);min-width:180px}
+.table{width:100%;border-collapse:collapse;background:white;border-radius:10px;overflow:hidden}
+.table th,.table td{padding:10px;border-bottom:1px solid #eee;text-align:left}
+.table th{background:#f3f6fa}
+.badge{padding:4px 8px;border-radius:6px;background:#e0f2fe;color:#0369a1;font-weight:600}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="logo-min">
+        <img src="images/isha-logo.jpeg" style="height:48px;border-radius:6px">
+      </div>
+      <div class="brand-text">Isha Automation — Admin</div>
+    </div>
+    <div class="header-actions">
+      <a href="inventory.html" class="btn ghost">🏬 Shop</a>
+      <a href="orders.html" class="btn ghost">📜 Orders</a>
+      <button id="logoutBtn" class="btn ghost">Logout</button>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+<h2>📊 Admin Dashboard</h2>
+
+<div class="stats">
+  <div class="stat-card">
+    <div class="muted">Total Orders</div>
+    <h2 id="totalOrders">0</h2>
+  </div>
+  <div class="stat-card">
+    <div class="muted">Total Revenue</div>
+    <h2 id="totalRevenue">₹0</h2>
+  </div>
+</div>
+
+<input id="searchInput" placeholder="Search by name / order id..." style="padding:10px;width:100%;max-width:320px;border-radius:8px;border:1px solid #ddd">
+
+<br><br>
+
+<table class="table">
+<thead>
+<tr>
+  <th>Order ID</th>
+  <th>Name</th>
+  <th>Date</th>
+  <th>Total</th>
+  <th>Items</th>
+  <th>Action</th>
+</tr>
+</thead>
+<tbody id="ordersTable"></tbody>
+</table>
+
+</main>
+
+<footer class="site-footer">© Isha Automation</footer>
+
+<script src="auth.js"></script>
+<script>
+  requireRole("admin");
+</script>
+
+
+<script>
+document.getElementById("logoutBtn").onclick = () => logout();
+
+function loadOrders(){
+  return JSON.parse(localStorage.getItem("sp_orders") || "[]");
+}
+
+let orders = loadOrders();
+
+const table = document.getElementById("ordersTable");
+const totalOrdersEl = document.getElementById("totalOrders");
+const totalRevenueEl = document.getElementById("totalRevenue");
+
+function render(list){
+  table.innerHTML = "";
+
+  if(!list.length){
+    table.innerHTML = "<tr><td colspan='6' class='muted'>No orders</td></tr>";
+    return;
+  }
+
+  list.slice().reverse().forEach(o=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${o.id}</td>
+      <td>${o.name}</td>
+      <td>${new Date(o.createdAt).toLocaleString()}</td>
+      <td>₹${o.total.toFixed(2)}</td>
+      <td>${o.items.length}</td>
+      <td>
+        <a class="btn ghost" href="order.html?orderId=${o.id}">View</a>
+        <button class="btn ghost" onclick="deleteOrder('${o.id}')">🗑</button>
+      </td>
+    `;
+    table.appendChild(tr);
+  });
+}
+
+function recalcStats(){
+  totalOrdersEl.textContent = orders.length;
+  const sum = orders.reduce((s,o)=>s+o.total,0);
+  totalRevenueEl.textContent = "₹" + sum.toFixed(2);
+}
+
+function deleteOrder(id){
+  if(!confirm("Delete this order?")) return;
+  orders = orders.filter(o=>o.id!==id);
+  localStorage.setItem("sp_orders", JSON.stringify(orders));
+  render(orders);
+  recalcStats();
+}
+
+document.getElementById("searchInput").addEventListener("input", e=>{
+  const q = e.target.value.toLowerCase();
+  const filtered = orders.filter(o=>
+    o.id.toLowerCase().includes(q) ||
+    o.name.toLowerCase().includes(q)
+  );
+  render(filtered);
+});
+
+render(orders);
+recalcStats();
+</script>
+
+</body>
+</html>

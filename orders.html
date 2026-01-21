@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>My Orders — Isha Automation</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="logo-min">
+        <img src="images/isha-logo.jpeg" alt="logo" style="height:48px;border-radius:6px">
+      </div>
+      <div class="brand-text">Isha Automation</div>
+    </div>
+    <div class="header-actions">
+      <a href="inventory.html" class="btn ghost">🏬 Shop</a>
+      <a href="profile.html" class="btn ghost">👤 Profile</a>
+      <button id="logoutBtn" class="btn ghost">Logout</button>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <h2>📜 My Orders</h2>
+  <div id="ordersList"></div>
+</main>
+
+<footer class="site-footer">© Isha Automation</footer>
+
+<script src="auth.js"></script>
+<script> requireAuth(); </script>
+
+<script>
+document.getElementById("logoutBtn").onclick = () => logout();
+
+function loadOrders() {
+  try {
+    const raw = localStorage.getItem("sp_orders");
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error("Order parse error", e);
+    return [];
+  }
+}
+
+const orders = loadOrders();
+console.log("Loaded orders:", orders);
+
+const list = document.getElementById("ordersList");
+
+if (!list) {
+  alert("ordersList container not found in HTML");
+}
+
+if (!orders.length) {
+  list.innerHTML = "<p class='muted'>No orders found.</p>";
+} else {
+  // latest first
+  orders.slice().reverse().forEach(o => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.style.marginBottom = "12px";
+
+    div.innerHTML = `
+      <h3>Order ${o.id}</h3>
+      <p><b>Date:</b> ${new Date(o.createdAt).toLocaleString()}</p>
+      <p><b>Total:</b> ₹${(o.total || 0).toFixed(2)}</p>
+      <p><b>Items:</b> ${o.items.length}</p>
+      <div style="margin-top:8px">
+        <a class="btn primary" href="order.html?orderId=${o.id}">View Order</a>
+      </div>
+    `;
+
+    list.appendChild(div);
+  });
+}
+</script>
+
+</body>
+</html>

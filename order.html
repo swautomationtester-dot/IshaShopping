@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Order Placed — Isha Automation</title>
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- 🎉 Confetti styles -->
+  <style>
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 14px;
+      top: -20px;
+      opacity: 0.9;
+      z-index: 9999;
+      animation: confettiFall linear forwards;
+    }
+    @keyframes confettiFall {
+      to {
+        transform: translateY(110vh) rotate(720deg);
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="logo-min">
+          <img src="images/isha-logo.jpeg" alt="logo" style="height:48px;border-radius:6px">
+        </div>
+        <div class="brand-text">Isha Automation</div>
+      </div>
+      <div class="header-actions">
+        <a href="inventory.html" class="btn ghost">🏬 Continue Shopping</a>
+	<a href="orders.html" class="btn ghost">📜 My Orders</a>
+        <button id="logoutBtn" class="btn ghost">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="orderPlaced" class="order-placed">
+      <div style="display:flex;justify-content:space-around;align-items:center;">
+        <div>
+          <h2>Thank you — your order is placed!</h2>
+          <p>Your order <strong id="orderId"></strong> has been received.</p>
+          <div id="orderDetails"></div>
+          <div style="margin-top:12px; display:flex; gap:10px;">
+  <a href="inventory.html" class="btn primary">🏬 Shop more</a>
+  <button id="printBtn" class="btn ghost">🖨 Print</button>
+  <button id="invoiceBtn" class="btn ghost">🧾 Download Invoice</button>
+</div>
+
+        </div>
+
+
+	
+
+        <div class="sparkle-container">
+          <img src="images/order-success.png"
+               alt="Order Success"
+               class="order-success-anim"
+               style="width:260px; border-radius:12px;">
+
+          <!-- Sparkle Stars -->
+          <div class="sparkle-star"></div>
+          <div class="sparkle-star"></div>
+          <div class="sparkle-star"></div>
+          <div class="sparkle-star"></div>
+          <div class="sparkle-star"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">© Isha Automation</div>
+  </footer>
+
+  <!-- 🔄 Global Loader -->
+  <div id="globalLoader" class="global-loader">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- ✅ Global Auth + UI Engine -->
+  <script src="auth.js"></script>
+
+  <!-- 🔐 Route Guard -->
+  <script>
+    requireAuth();
+  </script>
+
+  <!-- ✅ Page Logic -->
+  <script>
+    // 🔄 Show loader on page load
+    showLoader();
+
+    setTimeout(() => {
+      hideLoader();
+    }, 400);
+
+    // 🚪 Logout
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      showLoader();
+      setTimeout(() => logout(), 600);
+    });
+
+    // ================= ORDER LOGIC =================
+
+    function getQuery(name) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
+
+    function loadOrders() {
+      const raw = localStorage.getItem("sp_orders");
+      return raw ? JSON.parse(raw) : [];
+    }
+
+    const oid = getQuery("orderId");
+    document.getElementById("orderId").textContent = oid || "";
+
+    const orders = loadOrders();
+    const o = orders.find(x => x.id === oid);
+    const details = document.getElementById("orderDetails");
+
+    if (o) {
+      const d = document.createElement("div");
+      d.innerHTML = `
+        <p><strong>Name:</strong> ${o.name}</p>
+        <p><strong>Placed at:</strong> ${new Date(o.createdAt).toLocaleString()}</p>
+        <h4>Items</h4>
+      `;
+
+      const ul = document.createElement("ul");
+      o.items.forEach(it => {
+        const li = document.createElement("li");
+        li.textContent = `${it.name} × ${it.qty || 1} — ₹${(it.price * (it.qty || 1)).toFixed(2)}`;
+        ul.appendChild(li);
+      });
+
+      d.appendChild(ul);
+      d.innerHTML += `<p><strong>Total:</strong> ₹${o.total.toFixed(2)}</p>`;
+      details.appendChild(d);
+
+      // 🎉 Celebrate!
+      launchConfetti();
+      showToast("📧 Receipt sent to demo@isha.com", "success");
+
+    } else {
+      details.textContent = "Order not found in local storage.";
+      showToast("❌ Order not found!", "error");
+    }
+
+    // ================= CONFETTI =================
+    function launchConfetti() {
+      const colors = ["#22c55e","#3b82f6","#f59e0b","#ec4899","#8b5cf6","#06b6d4"];
+      for (let i = 0; i < 80; i++) {
+        const c = document.createElement("div");
+        c.className = "confetti";
+        c.style.left = Math.random() * 100 + "vw";
+        c.style.background = colors[Math.floor(Math.random() * colors.length)];
+        c.style.animationDuration = (Math.random() * 2 + 2) + "s";
+        c.style.transform = `rotate(${Math.random() * 360}deg)`;
+        document.body.appendChild(c);
+        setTimeout(() => c.remove(), 4500);
+      }
+    }
+// 🖨 Print
+document.getElementById("printBtn").addEventListener("click", () => {
+  window.print();
+});
+
+// 🧾 Invoice Download
+document.getElementById("invoiceBtn").addEventListener("click", () => {
+  if (!o) return;
+
+  const invoiceHtml = `
+    <html><head><title>Invoice ${o.id}</title></head>
+    <body style="font-family:Arial;padding:20px">
+      <h2>Isha Automation - Invoice</h2>
+      <p><b>Order:</b> ${o.id}</p>
+      <p><b>Name:</b> ${o.name}</p>
+      <p><b>Date:</b> ${new Date(o.createdAt).toLocaleString()}</p>
+      <hr/>
+      <ul>
+        ${o.items.map(i => `<li>${i.name} × ${i.qty} = ₹${(i.price*i.qty).toFixed(2)}</li>`).join("")}
+      </ul>
+      <hr/>
+      <h3>Total: ₹${o.total.toFixed(2)}</h3>
+    </body></html>
+  `;
+
+  const blob = new Blob([invoiceHtml], { type: "text/html" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `Invoice-${o.id}.html`;
+  a.click();
+});
+
+  </script>
+
+</body>
+</html>

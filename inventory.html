@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Isha Automation — Inventory</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="logo-min">
+          <img src="images/isha-logo.jpeg" alt="logo" style="height:48px;border-radius:6px">
+        </div>
+        <div class="brand-text">Isha Automation</div>
+      </div>
+      <div class="header-actions">
+        <a href="cart.html" class="cart" id="cartBtn">🛒 Cart: <span id="cartCount">0</span></a>
+        <button id="logoutBtn" class="btn ghost">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+<input id="searchInput" type="search" placeholder="Search products..." />
+    <section class="inventory-top">
+      <h2>Products</h2>
+      <div class="filters">
+        <label>Sort:
+          <select id="sortSelect">
+            <option value="default">Default</option>
+            <option value="price-asc">Price (low→high)</option>
+            <option value="price-desc">Price (high→low)</option>
+            <option value="name-asc">Name (A→Z)</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section id="productsGrid" class="products-grid"></section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">© Isha Automation — Hosted on GitHub Pages</div>
+  </footer>
+
+  <!-- 🔄 Global Loader -->
+  <div id="globalLoader" class="global-loader">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- ✅ Global Auth + UI Engine -->
+  <script src="auth.js"></script>
+
+  <!-- 🔐 Route Guard -->
+  <script>
+    requireAuth(); // any logged-in user
+  </script>
+
+  <!-- ✅ Page Logic -->
+  <script>
+    // 🔄 Show loader on page load
+    showLoader();
+    setTimeout(() => hideLoader(), 500);
+
+    // 🚪 Logout with spinner
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      showLoader();
+      setTimeout(() => logout(), 600);
+    });
+
+    // ================== PRODUCTS ==================
+    const PRODUCTS = [
+      { id: 'p1', name: 'Isha Backpack', price: 29.99, img: 'images/backpack.png', desc:'Durable backpack' },
+      { id: 'p2', name: 'Isha Bike Light', price: 9.99, img: 'images/bike-light.png', desc:'Bright LED light' },
+      { id: 'p3', name: 'Isha Bolt T-Shirt', price: 15.99, img: 'images/Bolt T-Shirt.png', desc:'Comfy cotton tee' },
+      { id: 'p4', name: 'Isha Fleece Jacket', price: 49.99, img: 'images/Fleece Jacket.png', desc:'Warm fleece jacket' },
+      { id: 'p5', name: 'Isha Onesie', price: 7.99, img: 'images/onesie.png', desc:'Cute onesie' },
+      { id: 'p6', name: 'Isha Test T-Shirt', price: 15.99, img: 'images/T-Shirt.png', desc:'Test-themed tee' }
+    ];
+
+    const grid = document.getElementById('productsGrid');
+    const cartCountEl = document.getElementById('cartCount');
+
+    function loadCart() {
+      const raw = localStorage.getItem('sp_cart');
+      return raw ? JSON.parse(raw) : [];
+    }
+
+    function saveCart(c) {
+      localStorage.setItem('sp_cart', JSON.stringify(c));
+      updateCartCount();
+    }
+
+    function updateCartCount() {
+      cartCountEl.textContent = loadCart().length;
+    }
+
+    function render(products) {
+      grid.innerHTML = '';
+      products.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'prod-card';
+        card.innerHTML = `
+          <div class="prod-thumb"><img src="${p.img}" alt="${p.name}"></div>
+          <div class="prod-body">
+            <div class="prod-title">${p.name}</div>
+            <div class="prod-meta">${p.desc}</div>
+            <div class="prod-price">₹${p.price.toFixed(2)}</div>
+            <div class="card-actions">
+              <button class="btn primary add-btn" data-id="${p.id}">Add to cart</button>
+              <button class="btn ghost details-btn" data-id="${p.id}">Details</button>
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function addToCart(id) {
+      const prod = PRODUCTS.find(p=>p.id===id);
+      const cart = loadCart();
+      const existsIdx = cart.findIndex(c=>c.id===prod.id);
+
+      if (existsIdx>-1) {
+        cart[existsIdx].qty = (cart[existsIdx].qty||1)+1;
+      } else {
+        cart.push({...prod, qty:1});
+      }
+      saveCart(cart);
+    }
+
+    // 🖱 Button actions
+    grid.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+
+     if (btn.classList.contains('add-btn')) {
+  const productId = btn.dataset.id;
+  const product = PRODUCTS.find(p => p.id === productId);
+
+  // 1. Fly animation
+  flyToCart(btn.closest(".prod-card").querySelector("img"));
+
+  // 2. Add to cart
+  addToCart(productId);
+
+  // 3. Toast
+  showToast(`🛒 ${product.name} added to cart`, "success");
+}
+
+      else if (btn.classList.contains('details-btn')) {
+        const p = PRODUCTS.find(x=>x.id===btn.dataset.id);
+        showToast(p.name + " - ₹" + p.price.toFixed(2), "info");
+      }
+    });
+
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      const filtered = PRODUCTS.filter(p =>
+        p.name.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q)
+      );
+      render(filtered);
+    });
+
+    document.getElementById('sortSelect').addEventListener('change', (e) => {
+      const val = e.target.value;
+      let copy = [...PRODUCTS];
+      if (val === 'price-asc') copy.sort((a,b)=>a.price-b.price);
+      else if (val === 'price-desc') copy.sort((a,b)=>b.price-a.price);
+      else if (val === 'name-asc') copy.sort((a,b)=>a.name.localeCompare(b.name));
+      render(copy);
+    });
+
+function flyToCart(imgEl) {
+  const cartBtn = document.getElementById("cartBtn");
+  if (!imgEl || !cartBtn) return;
+
+  const imgRect = imgEl.getBoundingClientRect();
+  const cartRect = cartBtn.getBoundingClientRect();
+
+  const clone = imgEl.cloneNode(true);
+  clone.classList.add("fly-img");
+
+  clone.style.left = imgRect.left + "px";
+  clone.style.top = imgRect.top + "px";
+  clone.style.width = imgRect.width + "px";
+  clone.style.height = imgRect.height + "px";
+
+  document.body.appendChild(clone);
+
+  // Force repaint
+  clone.getBoundingClientRect();
+
+  const dx = cartRect.left - imgRect.left + 20;
+  const dy = cartRect.top - imgRect.top + 10;
+
+  clone.style.transform = `translate(${dx}px, ${dy}px) scale(0.1)`;
+  clone.style.opacity = "0.2";
+
+  setTimeout(() => {
+    clone.remove();
+    cartBtn.classList.add("pop");
+    setTimeout(() => cartBtn.classList.remove("pop"), 300);
+  }, 800);
+}
+
+
+    render(PRODUCTS);
+    updateCartCount();
+  </script>
+
+</body>
+</html>

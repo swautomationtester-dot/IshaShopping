@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Checkout — Isha Automation</title>
+<link rel="stylesheet" href="styles.css"/>
+
+<style>
+/* ==== UI ==== */
+:root{--danger:#ef4444}
+.field-error{border:2px solid #ef4444!important;background:#fff5f5}
+.error-text{color:#ef4444;font-size:.85rem;margin-top:4px}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.shake{animation:shake .3s}
+
+/* ==== Modal ==== */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:9999}
+.modal{background:#fff;border-radius:12px;padding:20px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal h3{margin-top:0}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner container">
+    <div class="brand">
+      <div class="logo-min"><img src="images/isha-logo.jpeg"></div>
+      <div class="brand-text">Isha Automation</div>
+    </div>
+    <div class="header-actions">
+      <a href="cart.html" class="btn ghost">← Back to Cart</a>
+      <button id="logoutBtn" class="btn ghost">Logout</button>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+<div class="card">
+<h2>Checkout</h2>
+
+<div class="checkout-grid">
+
+<form id="checkoutForm" class="checkout-form">
+<label>Full name
+  <input id="fullName"/>
+</label>
+
+<label>Address
+  <textarea id="address"></textarea>
+</label>
+
+<div class="field-row">
+  <label>Card Number
+    <input id="cardNumber" maxlength="19" placeholder="1234 5678 1234 5678"/>
+  </label>
+  <label>Expiry (MM/YY)
+    <input id="expiry" maxlength="5" placeholder="12/26"/>
+  </label>
+  <label>CVC
+    <input id="cvc" maxlength="3" placeholder="123"/>
+  </label>
+</div>
+
+<div style="margin-top:12px">
+  <button class="btn primary" type="submit">Pay Now</button>
+</div>
+</form>
+
+<aside class="order-summary card">
+<h3>Order summary</h3>
+<div id="summaryList"></div>
+<div class="totals">
+  <div style="display:flex;justify-content:space-between"><div>Subtotal</div><div id="sumSubtotal">₹0.00</div></div>
+  <div style="display:flex;justify-content:space-between"><div>Tax</div><div id="sumTax">₹0.00</div></div>
+  <div style="display:flex;justify-content:space-between;font-weight:700"><div>Total</div><div id="sumTotal">₹0.00</div></div>
+</div>
+</aside>
+
+</div>
+</div>
+</main>
+
+<!-- ===== Review Modal ===== -->
+<div class="modal-backdrop" id="reviewModal">
+  <div class="modal">
+    <h3>Confirm your order</h3>
+    <div id="reviewContent"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeReview()">Cancel</button>
+      <button class="btn primary" onclick="confirmPayment()">Confirm & Pay</button>
+    </div>
+  </div>
+</div>
+
+<div id="globalLoader" class="global-loader"><div class="spinner"></div></div>
+
+<script src="auth.js"></script>
+<script>requireAuth();</script>
+
+<script>
+/* ===== Auto-format ===== */
+cardNumber.addEventListener("input", e=>{
+  let v=e.target.value.replace(/\D/g,"").slice(0,16);
+  e.target.value=v.replace(/(.{4})/g,"$1 ").trim();
+});
+expiry.addEventListener("input", e=>{
+  let v=e.target.value.replace(/\D/g,"").slice(0,4);
+  if(v.length>2) v=v.slice(0,2)+"/"+v.slice(2);
+  e.target.value=v;
+});
+
+/* ===== Helpers ===== */
+function loadCart(){return JSON.parse(localStorage.getItem("sp_cart")||"[]");}
+function saveOrder(o){
+ const a=JSON.parse(localStorage.getItem("sp_orders")||"[]");
+ a.push(o); localStorage.setItem("sp_orders",JSON.stringify(a));
+}
+function clearErrors(){
+ document.querySelectorAll(".field-error").forEach(e=>e.classList.remove("field-error","shake"));
+ document.querySelectorAll(".error-text").forEach(e=>e.remove());
+}
+function showFieldError(el,msg){
+ el.classList.add("field-error","shake");
+ const d=document.createElement("div"); d.className="error-text"; d.textContent=msg;
+ el.parentElement.appendChild(d);
+}
+
+/* ===== Render summary ===== */
+function renderSummary(){
+ const cart=loadCart(); summaryList.innerHTML="";
+ let sub=0;
+ cart.forEach(p=>{
+  sub+=p.price*(p.qty||1);
+  summaryList.innerHTML+=`<div class="summary-row">${p.name} × ${p.qty||1} — ₹${(p.price*(p.qty||1)).toFixed(2)}</div>`;
+ });
+ const tax=sub*0.05, tot=sub+tax;
+ sumSubtotal.textContent="₹"+sub.toFixed(2);
+ sumTax.textContent="₹"+tax.toFixed(2);
+ sumTotal.textContent="₹"+tot.toFixed(2);
+}
+renderSummary();
+
+/* ===== Submit ===== */
+let pendingOrder=null;
+
+checkoutForm.addEventListener("submit", e=>{
+ e.preventDefault(); clearErrors();
+
+ let ok=true, first=null;
+
+ if(fullName.value.trim().length<3){showFieldError(fullName,"Enter name");ok=false;first??=fullName;}
+ if(address.value.trim().length<10){showFieldError(address,"Enter address");ok=false;first??=address;}
+
+ if(cardNumber.value.replace(/\D/g,"").length!==16){showFieldError(cardNumber,"16 digit card");ok=false;first??=cardNumber;}
+ if(!/^\d{2}\/\d{2}$/.test(expiry.value)){showFieldError(expiry,"MM/YY");ok=false;first??=expiry;}
+ if(!/^\d{3}$/.test(cvc.value)){showFieldError(cvc,"3 digit CVC");ok=false;first??=cvc;}
+
+ if(!ok){ first.focus(); showToast("Fix highlighted fields","error"); return; }
+
+ openReview();
+});
+
+/* ===== Review Modal ===== */
+function openReview(){
+ const cart=loadCart();
+ let html="<ul>";
+ let sub=0;
+ cart.forEach(p=>{
+  const t=p.price*(p.qty||1);
+  sub+=t;
+  html+=`<li>${p.name} × ${p.qty||1} — ₹${t.toFixed(2)}</li>`;
+ });
+ const tax=sub*0.05, tot=sub+tax;
+ html+=`</ul><p><b>Total: ₹${tot.toFixed(2)}</b></p>`;
+ reviewContent.innerHTML=html;
+
+ pendingOrder={sub,tax,tot};
+ reviewModal.style.display="flex";
+}
+function closeReview(){ reviewModal.style.display="none"; }
+
+/* ===== Payment ===== */
+function confirmPayment(){
+ closeReview(); showLoader();
+
+ setTimeout(()=>{
+  const cart=loadCart();
+  const order={
+   id:"ORD-"+Date.now(),
+   createdAt:new Date().toISOString(),
+   name:fullName.value.trim(),
+   address:address.value.trim(),
+   items:cart,
+   subtotal:pendingOrder.sub,
+   tax:pendingOrder.tax,
+   total:pendingOrder.tot
+  };
+
+  saveOrder(order);
+  localStorage.removeItem("sp_cart");
+  showToast("Payment successful!","success");
+  setTimeout(()=>location.href="order.html?orderId="+order.id,800);
+ },1200);
+}
+</script>
+
+</body>
+</html>

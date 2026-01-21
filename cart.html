@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Cart — Isha Automation</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ================= HEADER ================= -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="logo-min">
+          <img src="images/isha-logo.jpeg" alt="logo" style="height:48px;border-radius:6px">
+        </div>
+        <div class="brand-text">Isha Automation</div>
+      </div>
+      <div class="header-actions">
+        <a href="inventory.html" class="btn ghost">Continue Shopping</a>
+        <button id="logoutBtn" class="btn ghost">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN ================= -->
+  <main class="container">
+    <h2>Your Cart</h2>
+
+    <div id="cartContainer" class="cart-container"></div>
+
+    <div id="cartEmpty" class="muted" style="display:none">
+      Your cart is empty. Add products from the inventory.
+    </div>
+
+    <div id="cartTotals" style="margin-top:16px; display:none;">
+      <div class="totals-row"><strong>Subtotal:</strong> <span id="subtotal">₹0.00</span></div>
+      <div class="totals-row"><strong>Tax (5%):</strong> <span id="tax">₹0.00</span></div>
+      <div class="totals-row"><strong>Total:</strong> <span id="total">₹0.00</span></div>
+      <div style="margin-top:12px;">
+        <button id="checkoutBtn" class="btn primary">Proceed to Checkout</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="site-footer">
+    <div class="container">© Isha Automation</div>
+  </footer>
+
+  <!-- 🔄 Global Loader -->
+  <div id="globalLoader" class="global-loader">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- ✅ Global Auth + UI Engine -->
+  <script src="auth.js"></script>
+
+  <!-- 🔐 Route Guard -->
+  <script>
+    requireAuth();
+  </script>
+
+  <!-- ================= PAGE LOGIC ================= -->
+  <script>
+    // 🔄 Page load spinner
+    showLoader();
+    setTimeout(() => {
+      hideLoader();
+      showToast("🛒 Cart loaded", "info");
+    }, 500);
+
+    // 🚪 Logout
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      showLoader();
+      setTimeout(() => logout(), 600);
+    });
+
+    // 🧾 Checkout
+    document.getElementById("checkoutBtn").addEventListener("click", () => {
+      const cart = loadCart();
+      if (!cart.length) {
+        showToast("❌ Your cart is empty", "error");
+        return;
+      }
+
+      showLoader();
+      setTimeout(() => {
+        window.location.href = "checkout.html";
+      }, 600);
+    });
+
+    function loadCart() {
+      const raw = localStorage.getItem("sp_cart");
+      return raw ? JSON.parse(raw) : [];
+    }
+
+    function saveCart(c) {
+      localStorage.setItem("sp_cart", JSON.stringify(c));
+    }
+
+    function renderCart() {
+      const cart = loadCart();
+      const container = document.getElementById("cartContainer");
+      const emptyEl = document.getElementById("cartEmpty");
+      const totalsEl = document.getElementById("cartTotals");
+
+      container.innerHTML = "";
+
+      if (!cart.length) {
+        emptyEl.style.display = "block";
+        totalsEl.style.display = "none";
+        showToast("⚠️ Your cart is empty", "warn");
+        return;
+      }
+
+      emptyEl.style.display = "none";
+      totalsEl.style.display = "block";
+
+      cart.forEach((p, idx) => {
+        const div = document.createElement("div");
+        div.className = "cart-row";
+        div.innerHTML = `
+          <div class="cart-thumb"><img src="${p.img}" alt="${p.name}"></div>
+          <div class="cart-meta">
+            <div class="prod-title">${p.name}</div>
+            <div class="muted">${p.desc}</div>
+          </div>
+          <div class="cart-actions">
+            <input type="number" min="1" value="${p.qty || 1}" data-idx="${idx}"
+              class="qty-input" style="width:60px;padding:6px;border-radius:6px;border:1px solid #e6eef7">
+          </div>
+          <div class="cart-price">₹${(p.price * (p.qty || 1)).toFixed(2)}</div>
+          <div>
+            <button class="btn ghost remove-btn" data-idx="${idx}">Remove</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+
+      // ❌ Remove item
+      container.querySelectorAll(".remove-btn").forEach(btn =>
+        btn.addEventListener("click", (e) => {
+          const idx = Number(e.target.dataset.idx);
+          const c = loadCart();
+          const removed = c.splice(idx, 1);
+          saveCart(c);
+          showToast("🗑️ Removed " + removed[0].name, "info");
+          renderCart();
+        })
+      );
+
+      // 🔢 Change quantity
+      container.querySelectorAll(".qty-input").forEach(inp =>
+        inp.addEventListener("change", (e) => {
+          const idx = Number(e.target.dataset.idx);
+          let val = Number(e.target.value) || 1;
+          if (val < 1) {
+            val = 1;
+            showToast("Quantity cannot be less than 1", "warn");
+          }
+
+          const c = loadCart();
+          c[idx].qty = val;
+          saveCart(c);
+          showToast("Quantity updated", "success");
+          renderCart();
+        })
+      );
+
+      updateTotals();
+    }
+
+    function updateTotals() {
+      const cart = loadCart();
+      const subtotal = cart.reduce((s, p) => s + p.price * (p.qty || 1), 0);
+      const tax = subtotal * 0.05;
+      const total = subtotal + tax;
+
+      document.getElementById("subtotal").textContent = "₹" + subtotal.toFixed(2);
+      document.getElementById("tax").textContent = "₹" + tax.toFixed(2);
+      document.getElementById("total").textContent = "₹" + total.toFixed(2);
+    }
+
+    // Initial render
+    renderCart();
+  </script>
+
+</body>
+</html>

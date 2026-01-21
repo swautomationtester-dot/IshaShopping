@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Profile — Isha Automation</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="logo-min">
+        <img src="images/isha-logo.jpeg" alt="logo" style="height:48px;border-radius:6px">
+      </div>
+      <div class="brand-text">Isha Automation</div>
+    </div>
+    <div class="header-actions">
+      <a href="inventory.html" class="btn ghost">🏬 Shop</a>
+      <a href="orders.html" class="btn ghost">📜 My Orders</a>
+      <button id="logoutBtn" class="btn ghost">Logout</button>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <div class="card" style="max-width:500px;margin:auto">
+    <h2>👤 My Profile</h2>
+    <p><b>Username:</b> <span id="username"></span></p>
+    <p><b>Role:</b> <span id="role"></span></p>
+    <p><b>Total Orders:</b> <span id="orderCount"></span></p>
+
+    <div style="margin-top:16px;display:flex;gap:10px">
+      <a href="orders.html" class="btn primary">📜 View Orders</a>
+      <button id="logoutBtn2" class="btn ghost">Logout</button>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">© Isha Automation</footer>
+
+<script src="auth.js"></script>
+<script> requireAuth(); </script>
+
+<script>
+document.getElementById("logoutBtn").onclick = () => logout();
+document.getElementById("logoutBtn2").onclick = () => logout();
+
+document.getElementById("username").textContent = localStorage.getItem("user") || "Demo User";
+document.getElementById("role").textContent = localStorage.getItem("role") || "user";
+
+const orders = JSON.parse(localStorage.getItem("sp_orders") || "[]");
+document.getElementById("orderCount").textContent = orders.length;
+</script>
+
+</body>
+</html>
